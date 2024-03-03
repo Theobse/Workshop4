@@ -1,6 +1,7 @@
 {
   "preset": "ts-jest",
   "testEnvironment": "node",
+  "verbose": true,
   "roots": ["__test__"],
   "transform": {
     "^.+\\.tsx?$": "ts-jest"
