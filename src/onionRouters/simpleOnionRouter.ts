@@ -15,7 +15,18 @@ export async function simpleOnionRouter(nodeId: number) {
 
   let lastReceivedEncryptedMessage: string | null = null;
   let lastReceivedDecryptedMessage: string | null = null;
-  let lastMessageDestination: string | null = null;
+  let lastMessageDestination: number | null = null;
+  let lastMessageSource: number | null = null;
+
+  async function sendMessageToTheNextNode(lastMessageDestination:number | null) {
+    await fetch(`http://localhost:${lastMessageDestination}/message`, {
+      method: "POST",
+      body: JSON.stringify({ message: lastReceivedDecryptedMessage }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  }
 
   onionRouter.get("/status", (req, res) => {
     res.send("live");
@@ -34,14 +45,31 @@ export async function simpleOnionRouter(nodeId: number) {
   });
 
   onionRouter.get("/getPrivateKey", (req, res) => {
-    res.json({result: privateKeyString});
+    res.json({ result: privateKeyString });
+  });
+
+  onionRouter.post("/message", async (req, res) => {
+    const outputLayer = req.body.message;
+
+    const encryptedSymKey = outputLayer.slice(0, 344);
+    const symKey = await crypto.rsaDecrypt(encryptedSymKey, privateKey);
+
+    const encryptedMessage = outputLayer.slice(344);
+    const message = await crypto.symDecrypt(symKey, encryptedMessage);
+
+    lastReceivedEncryptedMessage = outputLayer;
+    lastReceivedDecryptedMessage = message ? message.slice(10) : null;
+    lastMessageSource = nodeId;
+    lastMessageDestination = message ? parseInt(message.slice(0, 10), 10) : null;
+    
+    await sendMessageToTheNextNode(lastMessageDestination);
+    
+    res.send("success");
   });
 
   const server = onionRouter.listen(BASE_ONION_ROUTER_PORT + nodeId, async () => {
     console.log(`Onion router ${nodeId} is listening on port ${BASE_ONION_ROUTER_PORT + nodeId}`);
-    console.log({index: nodeId, pubKey: publicKeyString, prvKey: privateKeyString});
 
-    // Register the node on the registry
     await registerNodeOnRegistry(nodeId, publicKeyString);
   });
 
@@ -55,9 +83,9 @@ async function registerNodeOnRegistry(nodeId: number, publicKey: string) {
       pubKey: publicKey,
     });
 
-    // console.log(`Node ${nodeId} registered successfully on the registry. Response:`, response.data);
+    console.log(`Node ${nodeId} registered successfully on the registry. Response:`, response.data);
   } 
   catch (error) {
-    console.error(`Error registering node ${nodeId} on the registry:`);
+    console.error(`Error registering node ${nodeId} on the registry`);
   }
 }

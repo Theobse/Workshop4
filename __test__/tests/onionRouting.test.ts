@@ -20,7 +20,7 @@ import {
   symDecrypt,
   symEncrypt,
 } from "../../src/crypto";
-import { json } from "body-parser";
+
 const { validateEncryption } = require("./utils");
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
@@ -95,14 +95,6 @@ async function getPrivateKey(nodePort: number) {
     .then((json: any) => json.result as string);
 
   return strPrvKey;
-}
-
-async function getPublicKey(nodePort: number) {
-  const strPubKey = await fetch(`http://localhost:${nodePort}/getPublicKey`)
-    .then((res) => res.json())
-    .then((json: any) => json.result as string);
-
-  return strPubKey;
 }
 
 async function getLastSentMessage(userPort: number) {
@@ -345,28 +337,28 @@ describe("Onion Routing", () => {
       it("Can get the private key of any node through the /getPrivateKey route", async () => {
         const nodes = await getNodeRegistry();
 
-        console.log(nodes);
-    
         for (let index = 0; index < nodes.length; index++) {
-            const node = nodes[index];
-    
-            const strPrvKey = await getPrivateKey(BASE_ONION_ROUTER_PORT + node.nodeId);
-    
-            expect(/^[-A-Za-z0-9+/]*={0,3}$/.test(strPrvKey)).toBeTruthy();
-    
-            const prvKey = await importPrvKey(strPrvKey);
-    
-            const b64Message = btoa("hello world");
+          const node = nodes[index];
 
-            const encrypted = await rsaEncrypt(b64Message, node.pubKey);
-            const decrypted = await rsaDecrypt(encrypted, prvKey);
-    
-            // verify that the retrieved private key corresponds to the public key in the registry
-            expect(decrypted).toBe(b64Message);
+          const strPrvKey = await getPrivateKey(
+            BASE_ONION_ROUTER_PORT + node.nodeId
+          );
+
+          expect(/^[-A-Za-z0-9+/]*={0,3}$/.test(strPrvKey)).toBeTruthy();
+
+          const prvKey = await importPrvKey(strPrvKey);
+
+          const b64Message = btoa("hello world");
+
+          const encrypted = await rsaEncrypt(b64Message, node.pubKey);
+          const decrypted = await rsaDecrypt(encrypted, prvKey);
+
+          // verify that the retrieved private key corresponds to the public key in the registry
+          expect(decrypted).toBe(b64Message);
         }
       });
     });
-
+    
     describe("Sending messages to users - 1 pt", () => {
       const servers: http.Server[] = [];
 
@@ -423,7 +415,7 @@ describe("Onion Routing", () => {
       });
     });
   });
-
+  
   describe("Creating all cryptographic functions - 4pt", () => {
     it("Can generate RSA key pair - 0.5pt", async () => {
       const { publicKey, privateKey } = await generateRsaKeyPair();

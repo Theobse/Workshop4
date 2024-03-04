@@ -132,7 +132,6 @@ export async function rsaEncrypt(b64Data: string, strPublicKey: string): Promise
       dataBuffer
     );
     const encryptedDataB64 = arrayBufferToBase64(new Uint8Array(encryptedData));
-    // console.log({rsaEncrypt1: encryptedDataB64});
     return encryptedDataB64;
   } 
   catch (error) {
